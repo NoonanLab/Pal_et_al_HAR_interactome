@@ -1,0 +1,58 @@
+---
+title: "Chicago_commands"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r install_lib}
+# install relevant library
+library(Chicago)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r do_Chicago_run}
+# set up paths to input data of 3 replicates (either hNSC or cNSC)
+testDesignDir <- file.path("~/designDir_cHiC/")
+#dir(testDesignDir)
+
+testDataPath_rep1 <- file.path("~/HAR_HGE_CHiC/Chinput_rep1")
+# dir(testDataPath)
+
+testDataPath_rep2 <- file.path("~/HAR_HGE_CHiC/Chinput_rep2")
+
+testDataPath_rep3 <- file.path("~/HAR_HGE_CHiC/Chinput_rep3")
+
+# combine all 3 replicates
+integrated_files <- c(
+ file.path(testDataPath_rep1, "Chinput_rep1.chinput"), file.path(testDataPath_rep2, "Chinput_rep2.chinput"), file.path(testDataPath_rep3, "Chinput_rep3.chinput"))
+
+settingsFile <- file.path("~/DS_settings.txt") # 4bp cutter settings recommended by Freire-Pritchett et al (2021)
+
+# set up CHiCAGO model
+integrated_expt <- setExperiment(designDir = testDesignDir, settingsFile = settingsFile)
+
+# run the model on integrated files of 3 replicates
+integrated_expt <- readAndMerge(files = integrated_files, cd = integrated_expt)
+integrated_expt <- chicagoPipeline(integrated_expt)
+
+```
+
+```{r Chicago_results}
+# find significant results
+cutoff <- 4.5 # for human, 4.4 for chimpanzee
+int <- integrated_expt@x # all interactions
+sig_int <- int[score >= cutoff] # significant interactions
+
+# export results
+outputDir_chic <- "~/results_Chicago/Chicago_rep1_rep2_rep3/"
+dir.create(outputDir_chic)
+saveRDS(cd_hac, file.path(outputDir_chic, "cHiC_rep1_rep2_rep3_Chicago.Rds"))
+exportResults(cd_hac, file.path(outputDir_chic, "cHiC_rep1_rep2_rep3_Chicago"), cutoff = cutoff)
+
+```

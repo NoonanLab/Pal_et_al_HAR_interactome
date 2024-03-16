@@ -8,7 +8,7 @@ module load R
 module load Bowtie2
 module load SAMtools
 
-# Full path to the conf file
+# Full path to the conf file as defined in the HiCUP vignette
 conf_file="$1"
 
 # Create the "results" directory if it doesn't exist
@@ -31,5 +31,8 @@ ln -s ~/bin/HiCUP-0.8.2
 # Link to the folder where umi-tools package is downloaded
 ln -s ~/bin/umi_tools
 
-# Run deduplication on the filtered reads (here named R1_2.filt.sort.bam) to remove PCR duplicates
+# Run deduplication on the filtered reads (here named R1_2.filt.sort.bam) to remove PCR duplicates based on UMI
 umi_tools dedup -I R1_2.filt.sort.bam --paired --umi-separator=":" -S R1_2.dedup.bam
+
+# Convert to the CHiCAGO input format (after downloading the chicagoTools package)
+bam2chicago.sh R1_2.dedup.bam designDir/HARs_HGEs.baitmap designDir/GRCh38_DpnII.rmap HAR_HGE_chinput nodelete
