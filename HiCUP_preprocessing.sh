@@ -4,6 +4,7 @@
 #SBATCH --time=4-00:00:00
 #SBATCH --mem-per-cpu=7G
 
+# Load required modules
 module load R
 module load Bowtie2
 module load SAMtools
