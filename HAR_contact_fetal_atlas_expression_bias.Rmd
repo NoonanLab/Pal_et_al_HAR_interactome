@@ -1,0 +1,336 @@
+---
+title: "HAR_contact_fetal_atlas_expression_bias"
+output: html_document
+date: "2023-09-21"
+---
+
+Load in necessary packages
+
+```{r setup}
+require(Seurat)
+require(SeuratDisk)
+require(tidyverse)
+require(ComplexHeatmaps)
+require(Nebulosa)
+require(scales)
+require(forcats)
+```
+
+Generating heatmaps of clustered average scaled expression values for NSC HAR contacts
+
+``` {r create_NSC_heatmaps}
+# Load in fetal and embryonic human progenitor atlas (Bhaduri et al. 2021, Eze et al. 2021)
+fetal_human_atlas_seurat <- LoadH5Seurat(file = "fetal_human_atlas_seurat_progs.h5Seurat")
+
+# Load in HAR contacts from in vitro NSCs 
+NSC_HAR_targets <- read.table("./contact_lists/mapping_human.txt")
+colnames(NSC_HAR_targets) <- c("HAR", "target")
+NSC_HAR_targets <- separate_rows(NSC_HAR_targets, target, sep=",")
+
+# Scale data and extract average scaled expression values for all NSC HAR contacts
+fetal_human_atlas_seurat_progs <- ScaleData(fetal_human_atlas_seurat_progs)
+NSC_contacts_atlas_avg_exp <- AverageExpression(fetal_human_atlas_seurat_progs,
+                                                     features = unique(NSC_HAR_targets$target), slot = "scale.data")
+NSC_contacts_atlas_avg_exp <- NSC_contacts_atlas_avg_exp$RNA
+
+# Extract average normalized expression values for all NSC HAR contacts (for downstream ordering of heatmaps)
+NSC_contacts_atlas_avg_norm_exp <- AverageExpression(fetal_human_atlas_seurat_progs,
+                                                     features = unique(NSC_HAR_targets$target), slot = "data")
+NSC_contacts_atlas_avg_norm_exp <- NSC_contacts_atlas_avg_norm_exp$RNA
+
+# Alter names of progenitor subtypes for downstream visualization
+colnames(NSC_contacts_atlas_avg_exp) <- c("CB_NSC2 (G1/S)", "CB_NSC2 (G2/M)", "CB_NSC (G1/S)", "CB_NSC (G2/M)", "CB_NSC3 (G1/S)", "CGE_NSC (G1/S)", "CGE_NSC (G2/M)", "CX_IPC (G1/S)", "CX_IPC (G2/M)", "CX_ORG (G1/S)", "CX_RG (G1/S)", "CX_RG (G2/M)", "HC_NSC2 (G1/S)", "HC_NSC2 (G2/M)", "HC_NSC (G1/S)", "HC_NSC (G2/M)", "HC_NSC3 (G1/S)", "HT_NSC2 (G1/S)", "HT_NSC2 (G2/M)", "HT_NSC (G1/S)", "HT_NSC (G2/M)", "HT_NSC3 (G1/S)", "HT_NSC3 (G2/M)", "LGE_NSC (G1/S)", "LGE_NSC (G2/M)", "MGE_NSC (G1/S)", "MGE_NSC (G2/M)", "TH_NSC (G1/S)", "TH_NSC (G2/M)")
+colnames(NSC_contacts_atlas_avg_exp) <- str_split_fixed(colnames(NSC_contacts_atlas_avg_exp), " ", 2)[,1]
+colnames(NSC_contacts_atlas_avg_norm_exp) <- c("CB_NSC2 (G1/S)", "CB_NSC2 (G2/M)", "CB_NSC (G1/S)", "CB_NSC (G2/M)", "CB_NSC3 (G1/S)", "CGE_NSC (G1/S)", "CGE_NSC (G2/M)", "CX_IPC (G1/S)", "CX_IPC (G2/M)", "CX_ORG (G1/S)", "CX_RG (G1/S)", "CX_RG (G2/M)", "HC_NSC2 (G1/S)", "HC_NSC2 (G2/M)", "HC_NSC (G1/S)", "HC_NSC (G2/M)", "HC_NSC3 (G1/S)", "HT_NSC2 (G1/S)", "HT_NSC2 (G2/M)", "HT_NSC (G1/S)", "HT_NSC (G2/M)", "HT_NSC3 (G1/S)", "HT_NSC3 (G2/M)", "LGE_NSC (G1/S)", "LGE_NSC (G2/M)", "MGE_NSC (G1/S)", "MGE_NSC (G2/M)", "TH_NSC (G1/S)", "TH_NSC (G2/M)")
+colnames(NSC_contacts_atlas_avg_norm_exp) <- str_split_fixed(colnames(NSC_contacts_atlas_avg_norm_exp), " ", 2)[,1]
+
+# Group the average scaled expression values of NSC HAR contacts into 15 clusters using kmeans
+num_centers = 15
+NSC_contacts_atlas_kmeans <- kmeans(NSC_contacts_atlas_avg_exp, centers = num_centers)
+
+# Establish color scheme for eight brain regions and cell cycle phase
+cell_cycle_colors <- c("light grey", "#386C0B")
+names(cell_cycle_colors) <- c("(G1/S)", "(G2/M)")
+region_colors <- hue_pal()(8)
+names(region_colors) <- sort(unique(fetal_human_atlas_seurat_progs$origin))
+
+# Extract regional origin and cell cycle from atlas metadata and associate with respective color map
+regional_origin <- fetal_human_atlas_seurat_progs@meta.data %>% select(cell_type, origin) %>% group_by(cell_type) %>% summarize(regional_origin = names(which.max(table(origin)))) %>% mutate(regional_color = region_colors[regional_origin]) %>% mutate(cell_cycle = str_split_fixed(cell_type, " ", 2)[,2])
+regional_origin$cell_cycle[5] <- "(G1/S)"
+regional_origin$cell_cycle[17] <- "(G1/S)"
+regional_origin$cell_cycle_colors <- cell_cycle_colors[regional_origin$cell_cycle]
+
+# Create regional origin and cell cycle phase annotations for heatmaps
+region_annotation <- HeatmapAnnotation(region = regional_origin$regional_origin, col = list("region" = regional_origin$regional_color), annotation_label = "Regional Origin", annotation_name_gp = gpar(fontsize = 8), show_legend = FALSE)
+cell_cycle_annotation <- HeatmapAnnotation(cell_cycle = regional_origin$cell_cycle, col = list("cell_cycle" = regional_origin$cell_cycle_colors), annotation_label = "Cell Cycle Phase", annotation_name_gp = gpar(fontsize = 8), show_legend = FALSE)
+
+# Iterate through each cluster, creating a heatmap visualizing average scaled expression for genes within that cluster, ordered by the greatest normalized expression of each gene across NSC subtypes
+ann_heatmaps_by_cluster <- lapply(1:num_centers, function(x) {
+draw(Heatmap(as.matrix(NSC_contacts_atlas_avg_exp[NSC_contacts_atlas_kmeans$cluster == x,][names(sort.int(apply(NSC_contacts_atlas_avg_norm_exp[rownames(NSC_contacts_atlas_avg_exp[NSC_contacts_atlas_kmeans$cluster == x,]),], 1, max), decreasing = TRUE)),]),
+                                          name = glue::glue("Cluster { x }"),
+                                          bottom_annotation = cell_cycle_annotation,
+                                          top_annotation = region_annotation,
+                                          row_names_gp = gpar(fontsize = 10),
+                                          show_column_dend = TRUE,
+                                          show_row_dend = FALSE,
+                                          cluster_columns = TRUE,
+                                          cluster_rows = FALSE,
+                                          show_heatmap_legend = FALSE,
+                                          column_names_rot = 70), padding = unit(c(2, 10, 2, 2), "mm"))})
+
+# Annotation of heatmaps and average expression by NSC subtype or regional bias
+names(ann_heatmaps_by_cluster) <- c("Low Cerebellum", "Hippocampus/Cortex", "Cortical oRG", "G2/M", "Hypothalamus", "Cortical IPC", "Ventral", "oRG", "Hippocampus/Cortex", "Low Bias", "Thalamus/Cerebellum",  "Cerebellum", "Mostly G2/M", "Ventral", "NSC3")
+names(avg_exp_by_cluster) <- c("Low Cerebellum", "Hippocampus/Cortex", "Cortical oRG", "G2/M", "Hypothalamus", "Cortical IPC", "Ventral", "oRG", "Hippocampus/Cortex", "Low Bias", "Thalamus/Cerebellum",  "Cerebellum", "Mostly G2/M", "Ventral", "NSC3")
+
+# Save heatmaps and cluster assignments
+#saveRDS(Atreyo_contacts_atlas_kmeans, file = "./Atreyo_neuron_kmeans_clusters.rds")
+#Atreyo_contacts_atlas_kmeans <- readRDS(file ="./Atreyo_NSC_kmeans_clusters.rds")
+#saveRDS(ann_heatmaps_by_cluster, file = "./Atreyo_neuron_contact_heatmaps.rds")
+#ann_heatmaps_by_cluster <- readRDS(file = "./Atreyo_neuron_contact_heatmaps.rds")
+```
+
+Creating UMAP visualizations for embryonic and fetal neuronal atlas data
+
+``` {r create_NSC_fetal_atlas_plots}
+# Instantiate color maps for NSC subtypes and brain regions
+fetal_atlas_colormap =  hue_pal()(29)
+fetal_region_colormap = hue_pal()(8)
+
+names(fetal_atlas_colormap) <- sort(unique(fetal_human_atlas_seurat_progs$cell_type))
+names(fetal_region_colormap) <- sort(unique(fetal_human_atlas_seurat_progs$origin))
+
+# Fetal atlas plot all cell types
+DimPlot(fetal_human_atlas_seurat, group.by = "cell_type", pt.size = 1) + th_cell_type_dimplot_theme + theme(axis.line = element_blank(), axis.ticks = element_blank(), legend.position = "bottom", plot.title = element_blank(), legend.spacing.x = unit(5, 'mm')) + guides(color = guide_legend(override.aes = list(size = 6)))
+
+# Fetal atlas plot all cell types
+png(filename = "./panprogenitor_fetal_atlas_CXORG_highlight_UMAP.png", width = 575, height = 525)
+DimPlot(fetal_human_atlas_seurat_progs, pt.size = 1, cells.highlight = WhichCells(fetal_human_atlas_seurat_progs, idents = "CX_ORG (G1/S)"), cols.highlight = fetal_region_colormap[['CX']]) + th_cell_type_dimplot_theme + theme(axis.line = element_blank(), axis.ticks = element_blank(), legend.position = "none", plot.title = element_blank(), legend.spacing.x = unit(5, 'mm')) + guides(color = guide_legend(override.aes = list(size = 6)))
+dev.off()
+
+# Fetal atlas plot regional origin
+png(filename = "./panprogenitor_fetal_atlas_region_UMAP.png", width = 575, height = 525)
+DimPlot(fetal_human_atlas_seurat_progs, group.by = "origin", pt.size = 1) + th_cell_type_dimplot_theme + theme(axis.line = element_blank(), axis.ticks = element_blank(), legend.position = "none", plot.title = element_blank(), legend.spacing.x = unit(5, 'mm'))
+dev.off()
+
+# Fetal atlas plot regional origin plus oRG and IPC
+fetal_human_atlas_seurat_progs$origin_plus <- fetal_human_atlas_seurat_progs$origin
+levels(fetal_human_atlas_seurat_progs$origin_plus) <- c(levels(fetal_human_atlas_seurat_progs$origin_plus), "CX_ORG", "CX_IPC")
+fetal_human_atlas_seurat_progs$origin_plus[startsWith(fetal_human_atlas_seurat_progs$cell_type, "CX_ORG")] <- "CX_ORG"
+fetal_human_atlas_seurat_progs$origin_plus[startsWith(fetal_human_atlas_seurat_progs$cell_type, "CX_IPC")] <- "CX_IPC"
+fetal_region_colormap[['CX_ORG']] <- "#FDD017"
+fetal_region_colormap[['CX_IPC']] <- "#BBC2CC"
+fetal_human_atlas_seurat_progs$origin_plus <- relevel(fetal_human_atlas_seurat_progs$origin_plus, ref = "CX_IPC") %>% relevel(fetal_human_atlas_seurat_progs$origin_plus, ref = "CX_ORG")
+png(filename = "./panprogenitor_fetal_atlas_region_plus_UMAP.png", width = 575, height = 525)
+DimPlot(fetal_human_atlas_seurat_progs, group.by = "origin_plus", pt.size = 1, order = levels(fetal_human_atlas_seurat_progs$origin_plus)) + th_cell_type_dimplot_theme + theme(axis.line = element_blank(), axis.ticks = element_blank(), legend.position = "none", plot.title = element_blank(), legend.spacing.x = unit(5, 'mm')) + scale_color_manual(values = fetal_region_colormap)
+dev.off()
+
+# Density plots on panprogenitor atlas UMAP
+png(filename = "./NSC_density_AUTS2.png", width = 575, height = 525)
+plot_density(fetal_human_atlas_seurat, features = c("AUTS2"), pal = "magma") + th_cell_type_dimplot_theme + theme(axis.line = element_blank(), axis.ticks = element_blank(), legend.position = "none", plot.title = element_blank(), legend.spacing.x = unit(5, 'mm'))
+dev.off()
+```
+
+Create supplementary table of NSC HAR contact cluster assignments
+
+``` {r create_supp_NSC_table}
+# Create supplementary table of cluster assignments for genes
+avg_exp_by_cluster <- lapply(1:15, function(x){NSC_contacts_atlas_avg_exp[neuron_contacts_atlas_kmeans$cluster == x,]})
+avg_exp_by_cluster <- lapply(avg_exp_by_cluster, function(x) {as.data.frame(x) %>% mutate(gene = rownames(x))})
+avg_exp_by_cluster <- lapply(1:15, function(x) {avg_exp_by_cluster[[x]] %>% 
+    mutate(cluster = rep.int(x, dim(avg_exp_by_cluster[[x]])[1]))})
+cluster_gene_assignment <- do.call("rbind", avg_exp_by_cluster) %>% select(gene, cluster)
+cluster_name_list <- names(avg_exp_by_cluster)
+names(cluster_name_list) <- 1:15
+cluster_gene_assignment$cluster_name <- cluster_name_list[cluster_gene_assignment$cluster]
+
+write.table(cluster_gene_assignment, 
+            file = "~/Dropbox/Noonan Lab/workspace/Atreyo_HAR_contact_expression/NSC_cluster_assignment_supp_table.tsv",
+            sep = "\t", row.names = FALSE, col.names = TRUE)
+cluster_gene_assignment <- read.table(file = "~/Dropbox/Noonan Lab/workspace/Atreyo_HAR_contact_expression/NSC_cluster_assignment_supp_table.tsv", sep = "\t", header = TRUE)
+```
+
+Generating heatmaps of clustered average scaled expression values for neuronal HAR contacts
+
+``` {r load_h5ad}
+# Load in fetal and embryonic human neuron atlas (Bhaduri et al. 2021, Eze et al. 2021)
+fetal_human_atlas_seurat <- LoadH5Seurat(file = "fetal_human_atlas_seurat.h5Seurat")
+
+# Load in HAR contacts from in vitro neurons 
+neuron_HAR_targets <- read.table("./contact_lists/mapping_hum_neurons.txt")
+colnames(neuron_HAR_targets) <- c("HAR", "target")
+neuron_HAR_targets <- separate_rows(neuron_HAR_targets, target, sep=",")
+
+# Scale data and extract average scaled expression values for all neuron HAR contacts
+fetal_human_atlas_seurat <- ScaleData(fetal_human_atlas_seurat)
+neuron_contacts_atlas_avg_exp <- AverageExpression(fetal_human_atlas_seurat,
+                                                     features = unique(neuron_HAR_targets$target), slot = "scale.data")
+neuron_contacts_atlas_avg_exp <- neuron_contacts_atlas_avg_exp$RNA
+
+# Extract average normalized expression values for all neuron HAR contacts (for downstream ordering of heatmaps)
+neuron_contacts_atlas_avg_norm_exp <- AverageExpression(fetal_human_atlas_seurat,
+                                                     features = unique(neuron_HAR_targets$target), slot = "data")
+neuron_contacts_atlas_avg_norm_exp <- neuron_contacts_atlas_avg_norm_exp$RNA
+
+# Group the average scaled expression values of neuron HAR contacts into 15 clusters using kmeans
+num_centers = 15
+neuron_contacts_atlas_kmeans <- kmeans(neuron_contacts_atlas_avg_exp, centers = num_centers)
+
+# Establish color scheme for eight brain regions
+region_colors <- hue_pal()(8)
+names(region_colors) <- sort(unique(fetal_human_atlas_seurat$origin))
+
+# Extract regional origin from atlas metadata and match to regional color
+regional_origin <- fetal_human_atlas_seurat@meta.data %>% select(cell_type, origin) %>% group_by(cell_type) %>% summarize(regional_origin = names(which.max(table(origin)))) %>% mutate(regional_color = region_colors[regional_origin])
+
+# Create regional origin annotation for heatmaps
+region_annotation <- HeatmapAnnotation(region = regional_origin$regional_origin, col = list("region" = regional_origin$regional_color), annotation_label = "Regional Origin", annotation_name_gp = gpar(fontsize = 8), show_legend = FALSE, show_annotation_name = FALSE)
+
+# Iterate through each cluster, creating a heatmap visualizing average scaled expression for genes within that cluster, ordered by the greatest normalized expression of each gene across neuronal subtypes
+ann_heatmaps_by_cluster <- lapply(1:num_centers, function(x) {
+draw(Heatmap(neuron_contacts_atlas_avg_exp[neuron_contacts_atlas_kmeans$cluster == x,][names(sort.int(apply(neuron_contacts_atlas_avg_norm_exp[rownames(neuron_contacts_atlas_avg_exp[neuron_contacts_atlas_kmeans$cluster == x,]),], 1, max), decreasing = TRUE)),],
+                                          name = glue::glue("Cluster { x }"),
+                                          bottom_annotation = region_annotation,
+                                          row_names_gp = gpar(fontsize = 10),
+                                          show_column_dend = TRUE,
+                                          show_row_dend = FALSE,
+                                          cluster_columns = TRUE,
+                                          cluster_rows = FALSE,
+                                          show_heatmap_legend = FALSE,
+                                          column_names_rot = 70), padding = unit(c(2, 10, 2, 2), "mm"))})
+
+# Annotation of heatmaps and average expression by neuronal subtype or regional bias
+names(ann_heatmaps_by_cluster) <- c("Thalamic LGN Interneuron", "Hippocampus/Cortex/Cerebellum", "Hypothalamus/Hippocampus/Thalamus", "Ventral", "Low Enrichment", "Cerebellum", "Thalamic LGN Interneuron", "Hypothalamus/Hippocampus/Thalamus", "Hippocampus HCN3", "Hippocampus", "Low Interneuron", "Hypothalamic Glutamatergic Neuron", "Thalamus/Hypothalamus", "Hippocampal Dentate Gyrus", "Hippocampus/Cerebellum")
+names(avg_exp_by_cluster) <- c("Thalamic LGN Interneuron", "Hippocampus/Cortex/Cerebellum", "Hypothalamus/Hippocampus/Thalamus", "Ventral", "Low Enrichment", "Cerebellum", "Thalamic LGN Interneuron", "Hypothalamus/Hippocampus/Thalamus", "Hippocampus HCN3", "Hippocampus", "Low Interneuron", "Hypothalamic Glutamatergic Neuron", "Thalamus/Hypothalamus", "Hippocampal Dentate Gyrus", "Hippocampus/Cerebellum")
+
+# Save heatmaps and cluster assignments
+#saveRDS(ann_heatmaps_by_cluster, file = "./HAR_neuron_contact_heatmaps.rds")
+#ann_heatmaps_by_cluster <- readRDS(file = "~/Dropbox/Noonan Lab/workspace/human_chimp_organoid_project/Eze_et_al_2021_analysis/New_Eze_analysis/atlas_h5ad_objects/Atreyo_contact_lists/Atreyo_neuron_contact_heatmaps.rds")
+#saveRDS(Atreyo_contacts_atlas_kmeans, file = "./Atreyo_neuron_kmeans_clusters.rds")
+#Atreyo_contacts_atlas_kmeans <- readRDS(file = "./Atreyo_neuron_kmeans_clusters.rds")
+
+```
+
+Creating UMAP visualizations for embryonic and fetal neuronal atlas data
+
+``` {r create_fetal_atlas_plots}
+# Instantiate color maps for neuronal subtypes and brain regions
+fetal_atlas_colormap =  hue_pal()(35)
+fetal_region_colormap = hue_pal()(8)
+
+names(fetal_atlas_colormap) <- sort(unique(fetal_human_atlas_seurat$cell_type))
+
+# Fetal atlas plot all cell types
+png(filename = "./panneuronal_fetal_atlas_UMAP.png", width = 850, height = 1000)
+DimPlot(fetal_human_atlas_seurat, group.by = "cell_type", pt.size = 1) + th_cell_type_dimplot_theme + theme(axis.line = element_blank(), axis.ticks = element_blank(), legend.position = "bottom", plot.title = element_blank(), legend.spacing.x = unit(5, 'mm')) + guides(color = guide_legend(override.aes = list(size = 6)))
+dev.off()
+
+# Fetal atlas plot regional origin
+fetal_human_atlas_seurat$origin_plus <- fetal_human_atlas_seurat$origin
+levels(fetal_human_atlas_seurat$origin_plus) <- c(levels(fetal_human_atlas_seurat$origin_plus), "TH_LGNIN")
+fetal_human_atlas_seurat$origin_plus[fetal_human_atlas_seurat$cell_type == "TH_LGNIN"] <- "TH_LGNIN"
+fetal_human_atlas_seurat$origin_plus <- relevel(fetal_human_atlas_seurat$origin_plus, ref = "TH_LGNIN")
+fetal_region_colormap[['TH_LGNIN']] <- "#FDD017"
+png(filename = "./panneuronal_fetal_atlas_region_plus_UMAP.png", width = 575, height = 525)
+DimPlot(fetal_human_atlas_seurat, group.by = "origin_plus", pt.size = 1, order = TRUE) + th_cell_type_dimplot_theme + theme(axis.line = element_blank(), axis.ticks = element_blank(), legend.position = "none", plot.title = element_blank(), legend.spacing.x = unit(5, 'mm')) + scale_color_manual(values = fetal_region_colormap)
+dev.off()
+
+# Density plots on panneuronal atlas UMAP
+png(filename = "./raw_plots/neuron_density_CDH4.png", width = 575, height = 525)
+plot_density(fetal_human_atlas_seurat, features = c("PLAGL1"), pal = "magma") + th_cell_type_dimplot_theme + theme(axis.line = element_blank(), axis.ticks = element_blank(), legend.position = "none", plot.title = element_blank(), legend.spacing.x = unit(5, 'mm'))
+dev.off()
+```
+
+Create supplementary table of neuron HAR contact cluster assignments
+
+``` {r create_supp_neuron_table}
+# Create supplementary table of cluster assignments for genes
+avg_exp_by_cluster <- lapply(1:15, function(x){neuron_contacts_atlas_avg_exp[neuron_contacts_atlas_kmeans$cluster == x,]})
+avg_exp_by_cluster <- lapply(avg_exp_by_cluster, function(x) {as.data.frame(x) %>% mutate(gene = rownames(x))})
+avg_exp_by_cluster <- lapply(1:15, function(x) {avg_exp_by_cluster[[x]] %>% 
+    mutate(cluster = rep.int(x, dim(avg_exp_by_cluster[[x]])[1]))})
+cluster_gene_assignment <- do.call("rbind", avg_exp_by_cluster) %>% select(gene, cluster)
+cluster_name_list <- names(avg_exp_by_cluster)
+names(cluster_name_list) <- 1:15
+cluster_gene_assignment$cluster_name <- cluster_name_list[cluster_gene_assignment$cluster]
+
+write.table(cluster_gene_assignment, 
+            file = "~/Dropbox/Noonan Lab/workspace/Atreyo_HAR_contact_expression/neuron_cluster_assignment_supp_table.tsv", 
+            sep = "\t", row.names = FALSE, col.names = TRUE)
+cluster_gene_assignment_neuron <- read.table(file = "~/Dropbox/Noonan Lab/workspace/Atreyo_HAR_contact_expression/neuron_cluster_assignment_supp_table.tsv", sep = "\t", header = TRUE)
+```
+
+DEG HAR contact analysis
+
+Create heatmap for oRG-biased, human-biased DEG NSC HAR contacts
+
+``` {r Atreyo_heatmaps}
+# Load in DEG HAR contacts and filter to only those with human-biased expression
+DE_genes_HAR_targets <- read.table("./contact_lists/DEGs_diff_enrichment_full_trunc.txt", row.names = NULL)
+colnames(DE_genes_HAR_targets) <- c("Gene", "DHM", "DEG")
+DE_genes_HAR_targets <- DE_genes_HAR_targets %>% filter(DEG == "Human-biased_expression") %>% select(Gene) %>% unique()
+
+# Scale data and extract average scaled expression values for all human-biased DEG NSC HAR contacts
+fetal_human_atlas_seurat_progs <- ScaleData(fetal_human_atlas_seurat_progs)
+NSC_DEG_contacts_atlas_avg_exp <- AverageExpression(fetal_human_atlas_seurat_progs,
+                                                     features = DE_genes_HAR_targets$Gene, slot = "scale.data")
+NSC_DEG_contacts_atlas_avg_exp <- NSC_DEG_contacts_atlas_avg_exp$RNA
+
+# Extract average normalized expression values for all DEG NSC HAR contacts (for downstream ordering of heatmaps)
+NSC_DEG_contacts_atlas_avg_norm_exp <- AverageExpression(fetal_human_atlas_seurat_progs,
+                                                     features = unique(DE_genes_HAR_targets$Gene), slot = "data")
+NSC_DEG_contacts_atlas_avg_norm_exp <- NSC_DEG_contacts_atlas_avg_norm_exp$RNA
+
+# Rename NSC subtypes for downstream visualization
+colnames(NSC_DEG_contacts_atlas_avg_exp) <- c("CB_NSC2 (G1/S)", "CB_NSC2 (G2/M)", "CB_NSC (G1/S)", "CB_NSC (G2/M)", "CB_NSC3 (G1/S)", "CGE_NSC (G1/S)", "CGE_NSC (G2/M)", "CX_IPC (G1/S)", "CX_IPC (G2/M)", "CX_ORG (G1/S)", "CX_RG (G1/S)", "CX_RG (G2/M)", "HC_NSC2 (G1/S)", "HC_NSC2 (G2/M)", "HC_NSC (G1/S)", "HC_NSC (G2/M)", "HC_NSC3 (G1/S)", "HT_NSC2 (G1/S)", "HT_NSC2 (G2/M)", "HT_NSC (G1/S)", "HT_NSC (G2/M)", "HT_NSC3 (G1/S)", "HT_NSC3 (G2/M)", "LGE_NSC (G1/S)", "LGE_NSC (G2/M)", "MGE_NSC (G1/S)", "MGE_NSC (G2/M)", "TH_NSC (G1/S)", "TH_NSC (G2/M)")
+colnames(NSC_DEG_contacts_atlas_avg_exp) <- str_split_fixed(colnames(NSC_DEG_contacts_atlas_avg_exp), " ", 2)[,1]
+colnames(NSC_DEG_contacts_atlas_avg_norm_exp) <- c("CB_NSC2 (G1/S)", "CB_NSC2 (G2/M)", "CB_NSC (G1/S)", "CB_NSC (G2/M)", "CB_NSC3 (G1/S)", "CGE_NSC (G1/S)", "CGE_NSC (G2/M)", "CX_IPC (G1/S)", "CX_IPC (G2/M)", "CX_ORG (G1/S)", "CX_RG (G1/S)", "CX_RG (G2/M)", "HC_NSC2 (G1/S)", "HC_NSC2 (G2/M)", "HC_NSC (G1/S)", "HC_NSC (G2/M)", "HC_NSC3 (G1/S)", "HT_NSC2 (G1/S)", "HT_NSC2 (G2/M)", "HT_NSC (G1/S)", "HT_NSC (G2/M)", "HT_NSC3 (G1/S)", "HT_NSC3 (G2/M)", "LGE_NSC (G1/S)", "LGE_NSC (G2/M)", "MGE_NSC (G1/S)", "MGE_NSC (G2/M)", "TH_NSC (G1/S)", "TH_NSC (G2/M)")
+colnames(NSC_DEG_contacts_atlas_avg_norm_exp) <- str_split_fixed(colnames(NSC_DEG_contacts_atlas_avg_norm_exp), " ", 2)[,1]
+
+# Create heatmap of all 88 human-biased DEG NSC HAR contacts
+Heatmap(as.matrix(NSC_DEG_contacts_atlas_avg_exp),
+        row_names_gp = gpar(fontsize = 10),
+        cluster_columns = TRUE,
+        bottom_annotation = region_annotation,
+        top_annotation = cell_cycle_annotation,
+        show_heatmap_legend = FALSE,
+        column_names_rot = 70)
+
+# Isolate oRG-/cortex-biased genes by partitioning 88 DEG NSC HAR contacts into two clusters (results in one cluster of 20 genes with oRG bias)
+num_centers = 2
+NSC_DEG_contacts_atlas_kmeans <- kmeans(NSC_DEG_contacts_atlas_avg_exp, centers = num_centers)
+
+# Establish color scheme for eight brain regions and cell cycle phase
+cell_cycle_colors <- c("light grey", "#386C0B")
+names(cell_cycle_colors) <- c("(G1/S)", "(G2/M)")
+region_colors <- hue_pal()(8)
+names(region_colors) <- sort(unique(fetal_human_atlas_seurat_progs$origin))
+
+# Extract regional origin and cell cycle from atlas metadata and associate with respective color map
+regional_origin <- fetal_human_atlas_seurat_progs@meta.data %>% select(cell_type, origin) %>% group_by(cell_type) %>% summarize(regional_origin = names(which.max(table(origin)))) %>% mutate(regional_color = region_colors[regional_origin])
+#regional_origin$cell_type <- colnames(NSC_DEG_contacts_atlas_avg_exp)
+regional_origin <- regional_origin %>% mutate(cell_cycle = str_split_fixed(cell_type, " ", 2)[,2])
+regional_origin$cell_cycle[5] <- "(G1/S)"
+regional_origin$cell_cycle[17] <- "(G1/S)"
+regional_origin$cell_cycle_colors <- cell_cycle_colors[regional_origin$cell_cycle]
+
+# Create regional origin and cell cycle phase annotations for heatmaps
+region_annotation <- HeatmapAnnotation(region = regional_origin$regional_origin, col = list("region" = regional_origin$regional_color), annotation_label = "Regional Origin", annotation_name_gp = gpar(fontsize = 8), show_legend = FALSE)
+cell_cycle_annotation <- HeatmapAnnotation(cell_cycle = regional_origin$cell_cycle, col = list("cell_cycle" = regional_origin$cell_cycle_colors), annotation_label = "Cell Cycle Phase", annotation_name_gp = gpar(fontsize = 8), show_legend = FALSE)
+
+# Create two heatmaps from the human-biased DEG NSC HAR contacts
+ann_heatmaps_by_cluster <- lapply(1:num_centers, function(x) {
+draw(Heatmap(as.matrix(NSC_DEG_contacts_atlas_avg_exp[NSC_DEG_contacts_atlas_kmeans$cluster == x,][names(sort.int(apply(NSC_DEG_contacts_atlas_avg_norm_exp[rownames(NSC_DEG_contacts_atlas_avg_exp[NSC_DEG_contacts_atlas_kmeans$cluster == x,]),], 1, max), decreasing = TRUE)),]),
+                                          name = glue::glue("Cluster { x }"),
+                                          bottom_annotation = cell_cycle_annotation,
+                                          top_annotation = region_annotation,
+                                          row_names_gp = gpar(fontsize = 12),
+                                          show_column_dend = TRUE,
+                                          show_row_dend = FALSE,
+                                          cluster_columns = TRUE,
+                                          cluster_rows = FALSE,
+                                          show_heatmap_legend = FALSE,
+                                          column_names_rot = 70), padding = unit(c(2, 10, 2, 2), "mm"))})
+```
+
+
+
