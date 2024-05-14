@@ -1,3 +1,22 @@
+#df = pd.read_table("cNSC_interactions_rep1_rep2_gt4_half.inter.bb") # file to find unique list names
+lst_original = list(df['sourceName'])
+
+# get unique HAR/DA names
+new_lst = []
+i = 0
+while i < len(lst_original):
+    name = lst_original[i]
+    if name[-4:] == '_sec':
+        name = name[0:-4]
+    elif name[-5:] == '_tert' or name[-5:] == '_quad':
+        name = name[0:-5]
+    new_lst.append(name)
+    i+=1
+    if i >= len(lst_original)-1:
+        break
+    while i < len(lst_original) and lst_original[i].startswith(name):
+        i+=1
+
 # iterate over all 1691 HARs/DAs with significant interactions called, and store the KDE maxima for each in a dictionary
 final_dict = {}
 for i in new_lst:
