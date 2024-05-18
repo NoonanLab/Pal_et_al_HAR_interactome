@@ -124,7 +124,7 @@ for i in new_lst:
         for i in range(len(valley_indexes1)-1):
             small = valley_indexes1[i]
             big = valley_indexes1[i+1]
-            count = 0;
+            count = 0
             a_value_more_than_five = False
             for j in list(df_hacns457["rel_dist (kb)"]):
                 if j >= small and j <= big:
