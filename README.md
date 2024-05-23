@@ -9,6 +9,6 @@
 - [ ] rna_seq_diff_expression.Rmd<br>
 - [x] activating/repressive_loop_counting.py (ipynb richik)<br>
 - [x] repressive_nsc->activating_neuron.py (richik?)<br> combine 11 and 12
-- [ ] permutations.sh<br>
+- [x] permutations.sh<br>
 - [x] permutation_test.Rmd<br>
 - [x] mateo's code<br>
