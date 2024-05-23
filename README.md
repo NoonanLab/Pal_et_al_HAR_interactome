@@ -4,11 +4,10 @@
 - [ ] gene_target_annotations.sh<br>
 - [x] contact_profile.py<br>
 - [ ] cut_and_run_preprocessing.sh<br> 
-- [x] diff_enrichment_deseq2.Rmd<br> combine 7 and 8
+- [ ] diff_enrichment_deseq2.Rmd<br> combine 7 and 8
 - [x] rna_seq_preprocessing.sh<br>
-- [ ] rna_seq_diff_expression.Rmd<br>
-- [x] activating/repressive_loop_counting.py (ipynb richik)<br>
-- [x] repressive_nsc->activating_neuron.py (richik?)<br> combine 11 and 12
+- [x] rna_seq_diff_expression.Rmd<br>
+- [x] activating_repressive_loop_calling.py<br>
 - [x] permutations.sh<br>
 - [x] permutation_test.Rmd<br>
 - [x] mateo's code<br>
