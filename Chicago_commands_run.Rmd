@@ -1,7 +1,7 @@
 ---
 title: "Chicago_commands"
 output: html_document
-author: "Richik Pal, Atreyo Pal"
+author: "Atreyo Pal"
 ---
 
 ```{r setup, include=FALSE}
