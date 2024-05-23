@@ -23,7 +23,7 @@ while IFS= read -r line; do
     echo "$line"
 done < "$conf_file"
 
-# Link to the folder where hicup package is downloaded
+# Link to the folder where HiCUP package is downloaded
 ln -s ~/bin/HiCUP-0.8.2
 
 # Run all preprocessing steps of HiCUP with the specified config file
