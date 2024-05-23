@@ -62,7 +62,7 @@ def generate_batches(input_file, batch_size):
 
 generate_batches(f'target_intersect_DpnIIfrags_center_forSubmission{suffix}.bed', 1000)
 
-# Collect results after CapSequm2 runs are complete
+# Collect results after CapSequm2 runs are complete and submit to Twist for probe manufacturing
 def collect_results(files, output_file):
     with open(output_file, 'w') as outfile:
         for f in files:
