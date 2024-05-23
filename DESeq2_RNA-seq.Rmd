@@ -1,0 +1,56 @@
+---
+title: "DESeq2_RNA-seq"
+output: html_document
+date: '2024-05-17'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+library(DESeq2)
+library(pheatmap) 
+library(RColorBrewer)
+library(apeglm)
+```
+
+
+```{r load_data, echo=FALSE}
+countdata <- read.table("~/Downloads/RNA-Seq_XSAnno_coorected/All_counts_xsanno_corrected.txt", header = TRUE, row.names = 1)
+countdata <- round(countdata)
+metadata <- read.delim("~/Downloads/RNA-Seq_XSAnno_coorected/metadata.txt", row.names = 1)
+metadata$sampleid <- row.names(metadata)
+metadata <- metadata[match(colnames(countdata), metadata$sampleid), ]
+
+```
+
+```{r deseq2_object, echo=FALSE}
+ddsMat <- DESeqDataSetFromMatrix(countData = countdata,
+                                 colData = metadata,
+                                 design = ~ Group + Group:Line)
+```
+```{r}
+ddsMat$Group <- factor(ddsMat$Group, levels = c("Chimp", "Human"))
+```
+
+```{r}
+ddsMat <- DESeq(ddsMat)
+```
+
+```{r}
+res <- results(ddsMat, name = "Group_Human_vs_Chimp", pAdjustMethod = "fdr", alpha = 0.01)
+#summary(res)
+res_apeglm <- lfcShrink(ddsMat, coef = "Group_Human_vs_Chimp", res = res, type = "apeglm")
+output_res = as.data.frame(res_apeglm)
+resordered = data.frame(output_res[order(output_res$padj, na.last=NA),])
+deg <- resordered[resordered$padj<0.01 & abs(resordered$log2FoldChange)>=1,]
+
+```
+

@@ -10,7 +10,7 @@ Load in necessary packages
 require(Seurat)
 require(SeuratDisk)
 require(tidyverse)
-require(ComplexHeatmaps)
+require(ComplexHeatmap)
 require(Nebulosa)
 require(scales)
 require(forcats)
@@ -265,19 +265,19 @@ Create heatmap for oRG-biased, human-biased DEG NSC HAR contacts
 
 ``` {r Atreyo_heatmaps}
 # Load in DEG HAR contacts and filter to only those with human-biased expression
-DE_genes_HAR_targets <- read.table("./contact_lists/DEGs_diff_enrichment_full_trunc.txt", row.names = NULL)
-colnames(DE_genes_HAR_targets) <- c("Gene", "DHM", "DEG")
-DE_genes_HAR_targets <- DE_genes_HAR_targets %>% filter(DEG == "Human-biased_expression") %>% select(Gene) %>% unique()
+DE_genes_HAR_targets <- read.table("./contact_lists/DEG_table_corrected_apeglm.txt", row.names = NULL, header = TRUE)
+#colnames(DE_genes_HAR_targets) <- c("Gene", "DHM", "DEG")
+DE_genes_HAR_targets <- DE_genes_HAR_targets %>% filter(log2FoldChange > 0 & gene_name %in% NSC_HAR_targets$target) %>% select(gene_name) %>% unique()
 
 # Scale data and extract average scaled expression values for all human-biased DEG NSC HAR contacts
 fetal_human_atlas_seurat_progs <- ScaleData(fetal_human_atlas_seurat_progs)
 NSC_DEG_contacts_atlas_avg_exp <- AverageExpression(fetal_human_atlas_seurat_progs,
-                                                     features = DE_genes_HAR_targets$Gene, slot = "scale.data")
+                                                     features = DE_genes_HAR_targets$gene_name, slot = "scale.data")
 NSC_DEG_contacts_atlas_avg_exp <- NSC_DEG_contacts_atlas_avg_exp$RNA
 
 # Extract average normalized expression values for all DEG NSC HAR contacts (for downstream ordering of heatmaps)
 NSC_DEG_contacts_atlas_avg_norm_exp <- AverageExpression(fetal_human_atlas_seurat_progs,
-                                                     features = unique(DE_genes_HAR_targets$Gene), slot = "data")
+                                                     features = unique(DE_genes_HAR_targets$gene_name), slot = "data")
 NSC_DEG_contacts_atlas_avg_norm_exp <- NSC_DEG_contacts_atlas_avg_norm_exp$RNA
 
 # Rename NSC subtypes for downstream visualization
@@ -296,7 +296,7 @@ Heatmap(as.matrix(NSC_DEG_contacts_atlas_avg_exp),
         column_names_rot = 70)
 
 # Isolate oRG-/cortex-biased genes by partitioning 88 DEG NSC HAR contacts into two clusters (results in one cluster of 20 genes with oRG bias)
-num_centers = 2
+num_centers = 3
 NSC_DEG_contacts_atlas_kmeans <- kmeans(NSC_DEG_contacts_atlas_avg_exp, centers = num_centers)
 
 # Establish color scheme for eight brain regions and cell cycle phase
@@ -323,7 +323,7 @@ draw(Heatmap(as.matrix(NSC_DEG_contacts_atlas_avg_exp[NSC_DEG_contacts_atlas_kme
                                           name = glue::glue("Cluster { x }"),
                                           bottom_annotation = cell_cycle_annotation,
                                           top_annotation = region_annotation,
-                                          row_names_gp = gpar(fontsize = 12),
+                                          row_names_gp = gpar(fontsize = 10),
                                           show_column_dend = TRUE,
                                           show_row_dend = FALSE,
                                           cluster_columns = TRUE,
