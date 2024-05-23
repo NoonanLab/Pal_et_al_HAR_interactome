@@ -4,7 +4,6 @@ HiCUP_preprocessing.sh<br>
 gene_target_annotations.sh<br>
 interaction_profile.py<br>
 cut_and_run_preprocessing.sh<br> 
-diff_enrichment_pseudo_region_calling.sh<br>
 diff_enrichment_deseq2.Rmd<br> combine 7 and 8
 rna_seq_preprocessing.sh<br>
 rna_seq_diff_expression.Rmd<br>
