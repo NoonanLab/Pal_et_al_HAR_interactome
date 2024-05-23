@@ -4,7 +4,7 @@
 - [ ] gene_target_annotations.sh<br>
 - [x] contact_profile.py<br>
 - [ ] cut_and_run_preprocessing.sh<br> 
-- [ ] diff_enrichment_deseq2.Rmd<br> combine 7 and 8
+- [x] diff_enrichment_deseq2.Rmd<br> combine 7 and 8
 - [x] rna_seq_preprocessing.sh<br>
 - [ ] rna_seq_diff_expression.Rmd<br>
 - [x] activating/repressive_loop_counting.py (ipynb richik)<br>
