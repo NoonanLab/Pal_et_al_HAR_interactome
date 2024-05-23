@@ -1,6 +1,7 @@
 # Files
-- [x] CHiCAGO_significant_interactions.Rmd  
+- [x] CHiCAGO_probe_design.py<br>
 - [x] HiCUP_preprocessing.sh<br>
+- [x] CHiCAGO_significant_interactions.Rmd  
 - [ ] gene_target_annotations.sh<br>
 - [x] contact_profile.py<br>
 - [ ] cut_and_run_preprocessing.sh<br> 
