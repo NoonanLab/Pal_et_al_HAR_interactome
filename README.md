@@ -12,4 +12,4 @@
 - [x] activating_repressive_loop_calling.py<br>
 - [x] permutations.sh<br>
 - [x] permutation_test.Rmd<br>
-- [x] mateo's code<br>
+- [x] Matheo's code<br>
