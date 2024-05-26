@@ -45,4 +45,4 @@
 `DESeq2_RNA_seq.Rmd` - Perform differential gene expression analysis using DESeq2 between human and chimpanzee NSCs.
 
 ### Step 15
-`HAR_contact_fetal_atlas_expression_bias.Rmd` - Assess the expression bias of HAR and HGE gene targets in different cell types of the human fetal brain.
+`HAR_contact_fetal_atlas_expression_bias.Rmd` - Assess the expression bias of HAR and HGE gene targets in different cell types of the human fetal brain atlas.
