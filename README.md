@@ -5,7 +5,7 @@
 - [x] gene_target_annotations.R<br>
 - [x] refine_species_specific_targets.py<br>
 - [x] contact_profile.py<br>
-- [ ] cut_and_run_preprocessing.sh<br> 
+- [x] cut_and_run_preprocessing.sh<br> 
 - [ ] diff_enrichment_deseq2.Rmd<br>
 - [x] rna_seq_preprocessing.sh<br>
 - [x] rna_seq_diff_expression.Rmd<br>
