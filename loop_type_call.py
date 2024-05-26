@@ -1,7 +1,7 @@
 import argparse
 import pybedtools
 import pandas as pd
-from gff2bed import gff_to_bed  # Import function from gff2bed.py
+from gff_to_bed import gff_to_bed  # Import function from gff_to_bed.py
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Calling active and repressed loops.")
