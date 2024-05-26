@@ -36,15 +36,15 @@ ddsMat <- DESeqDataSetFromMatrix(countData = countdata,
                                  colData = metadata,
                                  design = ~ Group + Group:Line)
 ```
-```{r}
-ddsMat$Group <- factor(ddsMat$Group, levels = c("Chimp", "Human"))
+```{r set_human_vs_chimp, echo=FALSE}
+ddsMat$Group <- factor(ddsMat$Group, levels = c("Chimpanzee", "Human"))
 ```
 
-```{r}
+```{r run_deseq2, echo=FALSE}
 ddsMat <- DESeq(ddsMat)
 ```
 
-```{r}
+```{r results, echo=FALSE}
 res <- results(ddsMat, name = "Group_Human_vs_Chimp", pAdjustMethod = "fdr", alpha = 0.01)
 #summary(res)
 res_apeglm <- lfcShrink(ddsMat, coef = "Group_Human_vs_Chimp", res = res, type = "apeglm")
