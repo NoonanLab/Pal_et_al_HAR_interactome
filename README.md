@@ -1,6 +1,7 @@
 # Pal et al. 2024 
+# *Resolving the 3D Interactome of Human Accelerated Regions in Human and Chimpanzee Neurodevelopment*
 
-## Scripts accompanying the publication titled "Resolving the 3D Interactome of Human Accelerated Regions in Human and Chimpanzee Neurodevelopment"
+## Scripts accompanying the publication
 
 ### Step 1
 `CHiC_probe_design.py` - Design CHi-C probes for HARs and HGEs in human and chimpanzee genomes.
