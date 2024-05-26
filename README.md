@@ -1,4 +1,4 @@
-# Pal et al. 2024 *Resolving the 3D Interactome of Human Accelerated Regions in Human and Chimpanzee Neurodevelopment*
+# Pal et al. 2024  - Resolving the 3D Interactome of Human Accelerated Regions in Human and Chimpanzee Neurodevelopment
 
 ## Scripts accompanying the publication
 
