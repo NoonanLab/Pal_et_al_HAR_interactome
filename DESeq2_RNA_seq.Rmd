@@ -45,9 +45,9 @@ ddsMat <- DESeq(ddsMat)
 ```
 
 ```{r results, echo=FALSE}
-res <- results(ddsMat, name = "Group_Human_vs_Chimp", pAdjustMethod = "fdr", alpha = 0.01)
+res <- results(ddsMat, name = "Group_Human_vs_Chimpanzee", pAdjustMethod = "fdr", alpha = 0.01)
 #summary(res)
-res_apeglm <- lfcShrink(ddsMat, coef = "Group_Human_vs_Chimp", res = res, type = "apeglm")
+res_apeglm <- lfcShrink(ddsMat, coef = "Group_Human_vs_Chimpanzee", res = res, type = "apeglm")
 output_res = as.data.frame(res_apeglm)
 resordered = data.frame(output_res[order(output_res$padj, na.last=NA),])
 deg <- resordered[resordered$padj<0.01 & abs(resordered$log2FoldChange)>=1,]
