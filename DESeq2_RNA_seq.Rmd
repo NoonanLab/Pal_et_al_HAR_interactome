@@ -23,7 +23,7 @@ library(apeglm)
 
 
 ```{r load_data, echo=FALSE}
-countdata <- read.table("~/Downloads/RNA-Seq_XSAnno_coorected/All_counts_xsanno_corrected.txt", header = TRUE, row.names = 1)
+countdata <- read.table("~/Downloads/RNA-Seq_XSAnno_corrected/All_counts_xsanno_corrected.txt", header = TRUE, row.names = 1)
 countdata <- round(countdata)
 metadata <- read.delim("~/Downloads/RNA-Seq_XSAnno_coorected/metadata.txt", row.names = 1)
 metadata$sampleid <- row.names(metadata)
